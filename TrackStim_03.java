@@ -20,10 +20,11 @@ import org.micromanager.*;
 import mmcorej.Configuration;
 import mmcorej.PropertySetting;
 
-public class TrackStim_03 extends PlugInFrame implements ActionListener, ImageListener, MouseListener, ItemListener {
-    // public class RealTimeTracker_09 extends PlugInFrame implements
-    // ActionListener,ImageListener{
+import org.micromanager.api.MMPlugin;
+import org.micromanager.api.ScriptInterface;
 
+
+public class TrackStim_03 extends PlugInFrame implements MMPlugin, ActionListener, ImageListener, MouseListener, ItemListener {
     // globals just in this class
     Preferences prefs;
     TextField framenumtext;
@@ -66,6 +67,7 @@ public class TrackStim_03 extends PlugInFrame implements ActionListener, ImageLi
     String adportsname;// stimulation port for arduino
 
     // pass to TrackingThread
+    ScriptInterface app_;
     CMMCore mmc_;
     ImagePlus imp;
     ImageCanvas ic;
@@ -75,19 +77,13 @@ public class TrackStim_03 extends PlugInFrame implements ActionListener, ImageLi
 
     public TrackStim_03() {
         super("TrackerwithStimulater");
-        // First, check if there is mmc.
-        if (mmc_ == null) {
-            // if core object is not set attempt to get its global handle
-            mmc_ = MMStudioPlugin.getMMCoreInstance();
-        }
-        if (mmc_ == null) {
-            IJ.error("Unable to get Micro-Manager Core API handle.\n"
-                    + "If this module is used as ImageJ plugin, Micro-Manager Studio must be running first!");
-            return;
-        }
-        IJ.log("TrackStim Constructor: MMCore initialized");
+    }
 
-        MMStudioMainFrame mmcmf = MMStudioPlugin.frame_;
+    @Override
+    public void setApp(ScriptInterface app) {
+        app_ = app;
+        mmc_ = app.getMMCore();
+        IJ.log("TrackStim Constructor: MMCore initialized");
 
         prefs = Preferences.userNodeForPackage(this.getClass());// make instance?
         imp = WindowManager.getCurrentImage();
@@ -532,8 +528,6 @@ public class TrackStim_03 extends PlugInFrame implements ActionListener, ImageLi
         gbl.setConstraints(rampend, gbc);
         add(rampend);
         setSize(700, 225);
-        setVisible(true);
-
 
         // find the port that the xy stage is on
         ArrayList<String> portslist = getPortLabels();
@@ -555,6 +549,36 @@ public class TrackStim_03 extends PlugInFrame implements ActionListener, ImageLi
             IJ.log("TrackStim Constructor: stimulator is assigned at adportsname: " + adportsname);
         }
     }
+
+
+   @Override
+   public void dispose() {
+   }
+
+   @Override
+   public void show() {
+    setVisible(true);
+   }
+
+   @Override
+   public String getInfo () {
+      return "Real time c.elegans tracking";
+   }
+
+   @Override
+   public String getDescription() {
+      return "Real time c.elegans tracking";
+   }
+
+   @Override
+   public String getVersion() {
+      return "1.1.0";
+   }
+
+   @Override
+   public String getCopyright() {
+      return "Zhen Lab, 2019";
+   }
 
     void prepSignals(int channel) {
         IJ.log("prepSignals: parsing/validating UI values to send through channel " + Integer.toString(channel));
@@ -628,15 +652,13 @@ public class TrackStim_03 extends PlugInFrame implements ActionListener, ImageLi
                 IJ.log(e.getMessage());
             }
 
-            IJ.log("getPortLabels: property setting ps is " + ps.Serialize());
-
+            String propertyName = ps.getPropertyName();
+            String propertyValue = ps.getPropertyValue();
             // just testing enviroment having only one port /dev/tty.usbmodem1d11
-            if (ps.Serialize().indexOf("Port") > 0) {
-                // tempports[i]=ps.Serialize().split(" ")[2];
-                String parsedPort = ps.Serialize().split(" ")[2];
+            if (propertyName == "Port") {
 
-                IJ.log("getPortLabels: parsedPort is " + parsedPort);
-                portlist.add(ps.Serialize().split(" ")[2]);
+                IJ.log("getPortLabels: adding port label " + propertyValue);
+                portlist.add(propertyValue);
             }
         }
 
@@ -1026,14 +1048,14 @@ class TrackingThread10 extends Thread {
                 IJ.log(e.getMessage());
             }
 
-            String str = ps.getDeviceLabel();
-            IJ.log("getStagePortLabel: device label is " + str);
-            IJ.log("getStagePortLabel: serialized device label is " + ps.Serialize());// this should include port name
+            String deviceLabel = ps.getDeviceLabel();
+            String propertyName = ps.getPropertyName();
+            String propertyValue = ps.getPropertyValue();
+            IJ.log("getStagePortLabel: device label is " + deviceLabel);
+            IJ.log("getStagePortLabel: serialized device label is " + ps.getVerbose());// this should include port name
 
-            if (ps.Serialize().indexOf(stagelabel_) == 0) {
-                if (ps.Serialize().indexOf("Port") > 0) {
-                    PORT = ps.Serialize().split(" ")[2];
-                }
+            if ( (deviceLabel == stagelabel) && propertyName == "Port") {
+                PORT = propertyValue;
             }
         }
 
@@ -1420,7 +1442,8 @@ class TrackingThread10 extends Thread {
 
     void drawRoiOrder(int slice, double[][] roiorder, double[][] measures_, boolean trackstatus) {
         ImageProcessor drawip = binaryimgstack.getProcessor(slice);
-        // Rectangle r = roi.getBounds();
+
+
         for (int j = 0; j < roiorder.length; j++) {
             String order = String.valueOf((int) roiorder[j][0]);
             IJ.log(order + " slice " + String.valueOf(slice));
@@ -1504,8 +1527,6 @@ class TrackingThread10 extends Thread {
                         // is pretheta.
         threshsum = 0;
         threahaverage = 0;
-
-        // CMMCore mmc_=mmcmf.getMMCore ();
         if (mmc_.isSequenceRunning()) {
             try {
                 IJ.log("tried stopSequenceAcquisition");
