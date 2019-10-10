@@ -84,7 +84,15 @@ public class TrackStim_03 extends PlugInFrame implements MMPlugin, ActionListene
         app_ = app;
         mmc_ = app.getMMCore();
         IJ.log("TrackStim Constructor: MMCore initialized");
+    }
 
+
+   @Override
+   public void dispose() {
+   }
+
+   @Override
+   public void show() {
         prefs = Preferences.userNodeForPackage(this.getClass());// make instance?
         imp = WindowManager.getCurrentImage();
         ImageWindow iw = imp.getWindow();
@@ -548,16 +556,8 @@ public class TrackStim_03 extends PlugInFrame implements MMPlugin, ActionListene
         } else {
             IJ.log("TrackStim Constructor: stimulator is assigned at adportsname: " + adportsname);
         }
-    }
 
-
-   @Override
-   public void dispose() {
-   }
-
-   @Override
-   public void show() {
-    setVisible(true);
+        setVisible(true);
    }
 
    @Override
